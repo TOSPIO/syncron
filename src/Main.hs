@@ -16,7 +16,6 @@ The main module
 module Main where
 
 import Data.List.Utils
-import System.Environment
 import Options.Applicative
 import Watcher
 
@@ -37,12 +36,6 @@ argParser =
     <> metavar "EXCLUDED_DIRS"
     <> help "The paths to exclude from being watched"
     )
-
-usage :: IO ()
-usage = do
-  progName <- getProgName
-  putStrLn $ usageStr progName
-    where usageStr progName = "usage: " ++ progName ++ " src dst"
 
 run :: Args -> IO ()
 run (Args {srcDir=srcDir0, dstDir=dstDir0, excludedDirs=excludedDirs0}) =
