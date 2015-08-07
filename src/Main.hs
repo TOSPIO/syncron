@@ -15,9 +15,28 @@ The main module
 
 module Main where
 
+import Data.List.Utils
 import System.Environment
+import Options.Applicative
 import Watcher
 
+data Args = Args {
+  srcDir :: String,
+  dstDir :: String,
+  excludedDirs :: Maybe String
+  }
+
+argParser :: Parser Args
+argParser =
+  Args
+  <$> argument str (metavar "SRCDIR") -- Positional
+  <*> argument str (metavar "DSTDIR") -- Positional
+  <*> optional ( -- Optional
+    strOption $
+    long "exclude"
+    <> metavar "EXCLUDED_DIRS"
+    <> help "The paths to exclude from being watched"
+    )
 
 usage :: IO ()
 usage = do
@@ -25,15 +44,18 @@ usage = do
   putStrLn $ usageStr progName
     where usageStr progName = "usage: " ++ progName ++ " src dst"
 
+run :: Args -> IO ()
+run (Args {srcDir=srcDir0, dstDir=dstDir0, excludedDirs=excludedDirs0}) =
+  runWatcher srcDir0 dstDir0 splitExcludedDirs
+  where splitExcludedDirs =
+          case excludedDirs0 of
+          Just justExcludedDirs -> split "," justExcludedDirs
+          Nothing -> []
+
 main :: IO ()
-main = do
-  args <- getArgs
-  if length args /= 2
-    then usage
-    else
-    let (srcDir, dstDir) = extractDirs args
-    in
-      runWatcher srcDir dstDir
+main = execParser opts >>= run
   where
-    extractDirs args
-      | srcDir:dstDir:_ <- args = (srcDir, dstDir)
+    opts = info (helper <*> argParser)
+           $ fullDesc
+           <> progDesc "Synchronize SRCDIR to DSTDIR"
+           <> header "Syncron - a simple tool that synchronizes two folders real-time"

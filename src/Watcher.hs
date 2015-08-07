@@ -116,8 +116,8 @@ unmapWatch relPath = do
     (Just wd') -> return wd'
     _ -> error $ "Unexpected missing of watch descriptor for path " ++ relPath
 
-runWatcher :: FilePath -> FilePath -> IO ()
-runWatcher srcDir dstDir = do
+runWatcher :: FilePath -> FilePath -> [FilePath] -> IO ()
+runWatcher srcDir dstDir excludedPaths = do
   absoluteSrcDir <- absolutize srcDir
   absoluteDstDir <- absolutize dstDir
   writeIORef baseSrcDirRef absoluteSrcDir
