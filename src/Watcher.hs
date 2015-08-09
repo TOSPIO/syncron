@@ -48,7 +48,6 @@ sync relPath = do
   baseDstDir <- readIORef baseDstDirRef
   let srcDir = joinPath [baseSrcDir, relPath]
   let dstDir = joinPath [baseDstDir, relPath]
-  putStrLn dstDir
   putStrLn $ "Syncing " ++ srcDir ++ " to " ++ dstDir
   callProcess "rsync" ["-av", srcDir ++ "/", dstDir ++ "/"]
 
@@ -96,9 +95,9 @@ handleEvent inotify relPath evt = do
 
 watch :: INotify -> FilePath -> IO ()
 watch inotify relPath = do
-  putStrLn ("Adding " ++ relPath ++ " to watch list")
   baseSrcDir <- readIORef baseSrcDirRef
   let absolutePath = joinPath [baseSrcDir, relPath]
+  putStrLn ("Adding " ++ absolutePath ++ " to watch list")
   wd <- addWatch inotify eventVarieties absolutePath (handleEvent inotify relPath)
   mapWatch relPath wd
 
@@ -116,8 +115,8 @@ unmapWatch relPath = do
     (Just wd') -> return wd'
     _ -> error $ "Unexpected missing of watch descriptor for path " ++ relPath
 
-runWatcher :: FilePath -> FilePath -> [FilePath] -> IO ()
-runWatcher srcDir dstDir excludedPaths = do
+runWatcher :: FilePath -> FilePath -> Bool -> [FilePath] -> IO ()
+runWatcher srcDir dstDir noStartupSync excludedPaths = do
   absoluteSrcDir <- absolutize srcDir
   absoluteDstDir <- absolutize dstDir
   writeIORef baseSrcDirRef absoluteSrcDir
@@ -126,8 +125,7 @@ runWatcher srcDir dstDir excludedPaths = do
     subDirs <- getSubDirs absoluteSrcDir
     forM_ subDirs $ \subDir -> do
       let relPath = drop (length absoluteSrcDir + 1) subDir
-      putStrLn relPath
       watch inotify relPath
-      sync relPath
+      unless noStartupSync $ sync relPath
       return ()
     forever $ threadDelay 3000000

@@ -22,6 +22,7 @@ import Watcher
 data Args = Args {
   srcDir :: String,
   dstDir :: String,
+  noStartUpSync :: Bool,
   excludedDirs :: Maybe String
   }
 
@@ -30,6 +31,11 @@ argParser =
   Args
   <$> argument str (metavar "SRCDIR") -- Positional
   <*> argument str (metavar "DSTDIR") -- Positional
+  <*> switch ( -- True or False
+    long "no-startup-sync"
+    <> short 'n'
+    <> help "Do not sync on startup. Only sync on changes"
+             )
   <*> optional ( -- Optional
     strOption $
     long "exclude"
@@ -38,8 +44,13 @@ argParser =
     )
 
 run :: Args -> IO ()
-run (Args {srcDir=srcDir0, dstDir=dstDir0, excludedDirs=excludedDirs0}) =
-  runWatcher srcDir0 dstDir0 splitExcludedDirs
+run (Args {
+         srcDir=srcDir0,
+         dstDir=dstDir0,
+         noStartUpSync=noStartUpSync0,
+         excludedDirs=excludedDirs0
+         }) =
+  runWatcher srcDir0 dstDir0 noStartUpSync0 splitExcludedDirs
   where splitExcludedDirs =
           case excludedDirs0 of
           Just justExcludedDirs -> split "," justExcludedDirs
