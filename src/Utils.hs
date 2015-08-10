@@ -24,6 +24,7 @@ import Data.Maybe (fromJust)
 import System.Directory (doesDirectoryExist, getDirectoryContents, getHomeDirectory)
 import System.FilePath ((</>), joinPath, addTrailingPathSeparator, normalise)
 import System.Path.NameManip (guess_dotdot, absolute_path)
+import Text.ParserCombinators.Parsec
 
 
 absolutize :: String -> IO String
@@ -52,3 +53,18 @@ getSubDirs topDir = do
         getSubDirs path
       else return []
   return $ topDir:concat paths
+
+
+type Pattern = String
+data PatternToken = PathSection String | StarStar
+
+filePatternParser :: Parser [PatternToken]
+filePatternParser = sepBy patternTokenParser $ char '/'
+
+patternTokenParser :: Parser PatternToken
+patternTokenParser = do
+  x <- many $ noneOf "/"
+  return $ if x == "**" then StarStar else PathSection x
+
+resolveFilePattern :: FilePath -> Pattern -> Bool
+resolveFilePattern path pattern = undefined
