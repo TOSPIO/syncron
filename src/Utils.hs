@@ -25,6 +25,7 @@ import System.Directory (doesDirectoryExist, getDirectoryContents, getHomeDirect
 import System.FilePath ((</>), joinPath, addTrailingPathSeparator, normalise)
 import System.Path.NameManip (guess_dotdot, absolute_path)
 import Text.ParserCombinators.Parsec
+import WildMatch (wildmatch)
 
 
 absolutize :: String -> IO String

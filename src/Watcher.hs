@@ -21,11 +21,12 @@ import Control.Concurrent (threadDelay)
 import Control.Monad
 import qualified Data.HashMap.Strict as HM
 import Data.IORef
+import Data.List
 import Utils
 import System.INotify
 import System.IO.Unsafe
 import System.Process
-
+import WildMatch (wildmatch)
 
 eventVarieties :: [EventVariety]
 eventVarieties = [Modify, Attrib, Create, Delete, MoveIn, MoveOut]
@@ -42,14 +43,20 @@ baseDstDirRef = unsafePerformIO $ newIORef ""
 dirWDMapperRef :: IORef (HM.HashMap FilePath WatchDescriptor)
 dirWDMapperRef = unsafePerformIO $ newIORef HM.empty
 
-sync :: FilePath -> IO ()
-sync relPath = do
+sync :: FilePath -> [FilePath] -> IO ()
+sync relPath excludedPaths = do
   baseSrcDir <- readIORef baseSrcDirRef
   baseDstDir <- readIORef baseDstDirRef
   let srcDir = joinPath [baseSrcDir, relPath]
   let dstDir = joinPath [baseDstDir, relPath]
   putStrLn $ "Syncing " ++ srcDir ++ " to " ++ dstDir
-  callProcess "rsync" ["-av", srcDir ++ "/", dstDir ++ "/"]
+  let cmdArgs =
+        ["-avz", srcDir ++ "/", dstDir ++ "/", "-f", "- /*/*/"] ++
+        case excludedPaths of
+        [] -> []
+        otherwise -> ["--exclude=" ++ intercalate "," slashedExcludedPaths]
+        where slashedExcludedPaths = map ("/"++) excludedPaths
+  callProcess "rsync" cmdArgs
 
 disappearEventView :: Event -> Maybe Event
 disappearEventView evt

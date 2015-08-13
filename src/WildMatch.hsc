@@ -40,15 +40,18 @@ newtype MatchResult =
 
 foreign import ccall "wildmatch.h wildmatch"
   c_wildmatch :: CString -> CString -> CUInt -> Ptr a -> CInt
-wildmatch :: String -> String -> MatchFlag -> IO MatchResult
-wildmatch pattern text flags = do
+
+-- Always use wmPathName as MatchFlag
+wildmatch :: String -> String -> IO MatchResult
+wildmatch pattern text = do
   let bsPattern = pack pattern
   let bsText = pack text
   useAsCString bsPattern $ \c_pattern -> do
     useAsCString bsText $ \c_text -> do
-      let c_ret = c_wildmatch c_pattern c_text (fromIntegral $ unwrapMatchFlag flags) nullPtr
+      let c_ret = c_wildmatch c_pattern c_text (fromIntegral $ unwrapMatchFlag wmPathName) nullPtr
       return $ MatchResult $ fromIntegral c_ret
 
+-- For FFI test purpose
 foreign import ccall "math.h sin"
   c_sin :: CDouble -> CDouble
 fastSin :: Double -> Double

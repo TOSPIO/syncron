@@ -51,13 +51,11 @@ run (Args {
          noStartUpSync=noStartUpSync0,
          excludedDirs=excludedDirs0
          }) = do
-  r <- WM.wildmatch "123" "123" WM.wmNothing
-  print r
-  -- runWatcher srcDir0 dstDir0 noStartUpSync0 splitExcludedDirs
-  -- where splitExcludedDirs =
-  --         case excludedDirs0 of
-  --         Just justExcludedDirs -> split "," justExcludedDirs
-  --         Nothing -> []
+  runWatcher srcDir0 dstDir0 noStartUpSync0 splitExcludedDirs
+  where splitExcludedDirs =
+          case excludedDirs0 of
+          Just justExcludedDirs -> split "," justExcludedDirs
+          Nothing -> []
 
 main :: IO ()
 main = execParser opts >>= run
