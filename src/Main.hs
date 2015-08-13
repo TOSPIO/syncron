@@ -18,6 +18,7 @@ module Main where
 import Data.List.Utils
 import Options.Applicative
 import Watcher
+import qualified WildMatch as WM
 
 data Args = Args {
   srcDir :: String,
@@ -49,12 +50,14 @@ run (Args {
          dstDir=dstDir0,
          noStartUpSync=noStartUpSync0,
          excludedDirs=excludedDirs0
-         }) =
-  runWatcher srcDir0 dstDir0 noStartUpSync0 splitExcludedDirs
-  where splitExcludedDirs =
-          case excludedDirs0 of
-          Just justExcludedDirs -> split "," justExcludedDirs
-          Nothing -> []
+         }) = do
+  r <- WM.wildmatch "123" "123" WM.wmNothing
+  print r
+  -- runWatcher srcDir0 dstDir0 noStartUpSync0 splitExcludedDirs
+  -- where splitExcludedDirs =
+  --         case excludedDirs0 of
+  --         Just justExcludedDirs -> split "," justExcludedDirs
+  --         Nothing -> []
 
 main :: IO ()
 main = execParser opts >>= run
