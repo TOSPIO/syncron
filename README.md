@@ -14,4 +14,4 @@ Usage: syncron SRCDIR DSTDIR [-n|--no-startup-sync] [--exclude EXCLUDED_DIRS]
 Available options:
   -h,--help                Show this help text
   -n,--no-startup-sync     Do not sync on startup. Only sync on changes
-  --exclude EXCLUDED_DIRS  The paths to exclude from being watched (Not implemented yet)
+  --exclude EXCLUDED_DIRS  The paths to exclude from being watched
