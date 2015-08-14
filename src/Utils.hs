@@ -13,59 +13,15 @@ The utils module
 -}
 
 module Utils (
-  absolutize,
-  getSubDirs,
-  joinPath,
+  anyM
   ) where
 
 import Control.Monad
-import Data.List (isPrefixOf)
-import Data.Maybe (fromJust)
-import System.Directory (doesDirectoryExist, getDirectoryContents, getHomeDirectory)
-import System.FilePath ((</>), joinPath, addTrailingPathSeparator, normalise)
-import System.Path.NameManip (guess_dotdot, absolute_path)
-import Text.ParserCombinators.Parsec
-import WildMatch (wildmatch)
 
-
-absolutize :: String -> IO String
-absolutize aPath
-    | "~" `isPrefixOf` aPath = do
-        homePath <- getHomeDirectory
-        return $ normalise $ addTrailingPathSeparator homePath
-                             ++ tail aPath
-    | otherwise = do
-        pathMaybeWithDots <- absolute_path aPath
-        return $ fromJust $ guess_dotdot pathMaybeWithDots
-
-getSubDirs :: FilePath -> IO [FilePath]
-getSubDirs topDir = do
-  names <- getDirectoryContents topDir
-  let properNames =
-        let properNamePredicate ('.':_) = False
-            properNamePredicate _ = True
-        in
-          filter properNamePredicate names
-  paths <- forM properNames $ \name -> do
-    let path = topDir </> name
-    isDir <- doesDirectoryExist path
-    if isDir
-      then
-        getSubDirs path
-      else return []
-  return $ topDir:concat paths
-
-
-type Pattern = String
-data PatternToken = PathSection String | StarStar
-
-filePatternParser :: Parser [PatternToken]
-filePatternParser = sepBy patternTokenParser $ char '/'
-
-patternTokenParser :: Parser PatternToken
-patternTokenParser = do
-  x <- many $ noneOf "/"
-  return $ if x == "**" then StarStar else PathSection x
-
-resolveFilePattern :: FilePath -> Pattern -> Bool
-resolveFilePattern path pattern = undefined
+-- TODO: change [a] to Foldable t => t a
+anyM :: (Monad m) => (a -> m Bool) -> [a] -> m Bool
+anyM m t = case t of
+  [] -> return False
+  (x:xs) -> do
+    result <- m x
+    if result then return True else anyM m xs

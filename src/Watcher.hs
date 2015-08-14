@@ -22,11 +22,11 @@ import Control.Monad
 import qualified Data.HashMap.Strict as HM
 import Data.IORef
 import Data.List
+import FileSystem
 import Utils
 import System.INotify
 import System.IO.Unsafe
 import System.Process
-import WildMatch (wildmatch)
 
 eventVarieties :: [EventVariety]
 eventVarieties = [Modify, Attrib, Create, Delete, MoveIn, MoveOut]
@@ -43,20 +43,33 @@ baseDstDirRef = unsafePerformIO $ newIORef ""
 dirWDMapperRef :: IORef (HM.HashMap FilePath WatchDescriptor)
 dirWDMapperRef = unsafePerformIO $ newIORef HM.empty
 
-sync :: FilePath -> [FilePath] -> IO ()
-sync relPath excludedPaths = do
+{-# NOINLINE excludedPatternsRef #-}
+excludedPatternsRef :: IORef [String]
+excludedPatternsRef = unsafePerformIO $ newIORef []
+
+sync :: FilePath -> IO ()
+sync relPath = do
   baseSrcDir <- readIORef baseSrcDirRef
   baseDstDir <- readIORef baseDstDirRef
-  let srcDir = joinPath [baseSrcDir, relPath]
-  let dstDir = joinPath [baseDstDir, relPath]
+  excludedPatterns <- readIORef excludedPatternsRef
+  let srcDir = normalize $ joinPath [baseSrcDir, relPath]
+  let dstDir = normalize $ joinPath [baseDstDir, relPath]
   putStrLn $ "Syncing " ++ srcDir ++ " to " ++ dstDir
-  let cmdArgs =
-        ["-avz", srcDir ++ "/", dstDir ++ "/", "-f", "- /*/*/"] ++
-        case excludedPaths of
-        [] -> []
-        otherwise -> ["--exclude=" ++ intercalate "," slashedExcludedPaths]
-        where slashedExcludedPaths = map ("/"++) excludedPaths
-  callProcess "rsync" cmdArgs
+  normalizedContents <- getNormalizedContents srcDir
+  excludedContents <- getExcludedContents baseSrcDir srcDir normalizedContents excludedPatterns
+  let slashedExcludedContents = map ("/"++) excludedContents
+  case normalizedContents of
+    [] -> return ()
+    otherwise -> do
+      let cmdArgs = ["-lptgodDvz"] ++
+                    map (joinPath2 srcDir) normalizedContents ++
+                    [dstDir] ++
+                    case excludedPatterns of
+                    [] -> []
+                    otherwise ->
+                      map ("--exclude=" ++) $ slashedExcludedContents
+      print cmdArgs
+      callProcess "rsync" cmdArgs
 
 disappearEventView :: Event -> Maybe Event
 disappearEventView evt
@@ -93,17 +106,18 @@ handleEvent _ relPath (disappearEventView -> Just evt) = do
 handleEvent inotify relPath evt = do
   let path = filePath evt
   adjustINotify inotify relPath evt
-  if not $ isDirectory evt
-    then
-    sync relPath
-    else
-    let extendedPath = joinPath [relPath, path] in
-    sync extendedPath
+  sync relPath
+  -- if not $ isDirectory evt
+  --   then
+  --   sync relPath
+  --   else
+  --   let extendedPath = joinPath [relPath, path] in
+  --   sync extendedPath
 
 watch :: INotify -> FilePath -> IO ()
 watch inotify relPath = do
   baseSrcDir <- readIORef baseSrcDirRef
-  let absolutePath = joinPath [baseSrcDir, relPath]
+  let absolutePath = if relPath == "." then baseSrcDir else joinPath [baseSrcDir, relPath]
   putStrLn ("Adding " ++ absolutePath ++ " to watch list")
   wd <- addWatch inotify eventVarieties absolutePath (handleEvent inotify relPath)
   mapWatch relPath wd
@@ -123,15 +137,16 @@ unmapWatch relPath = do
     _ -> error $ "Unexpected missing of watch descriptor for path " ++ relPath
 
 runWatcher :: FilePath -> FilePath -> Bool -> [FilePath] -> IO ()
-runWatcher srcDir dstDir noStartupSync excludedPaths = do
-  absoluteSrcDir <- absolutize srcDir
-  absoluteDstDir <- absolutize dstDir
+runWatcher srcDir dstDir noStartupSync excludedPatterns = do
+  absoluteSrcDir <- makeAbsolute srcDir
+  absoluteDstDir <- makeAbsolute dstDir
   writeIORef baseSrcDirRef absoluteSrcDir
   writeIORef baseDstDirRef absoluteDstDir
+  writeIORef excludedPatternsRef excludedPatterns
   withINotify $ \inotify -> do
-    subDirs <- getSubDirs absoluteSrcDir
+    subDirs <- getSubDirs absoluteSrcDir absoluteSrcDir excludedPatterns
     forM_ subDirs $ \subDir -> do
-      let relPath = drop (length absoluteSrcDir + 1) subDir
+      let relPath = makeRelative absoluteSrcDir subDir
       watch inotify relPath
       unless noStartupSync $ sync relPath
       return ()

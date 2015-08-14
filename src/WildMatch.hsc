@@ -2,12 +2,10 @@
 
 module WildMatch (
   wildmatch,
+  wildmatchAny,
   fastSin,
-  MatchFlag(..),
   MatchResult(..),
-  wmNothing,
-  wmCaseFold,
-  wmPathName,
+  wmMatch,
   ) where
 
 import Data.ByteString.Char8
@@ -15,6 +13,7 @@ import Data.IntMap.Lazy
 import Foreign
 import Foreign.C.Types
 import Foreign.C.String
+import Utils
 
 #include "wildmatch/wildmatch.h"
 
@@ -42,14 +41,18 @@ foreign import ccall "wildmatch.h wildmatch"
   c_wildmatch :: CString -> CString -> CUInt -> Ptr a -> CInt
 
 -- Always use wmPathName as MatchFlag
-wildmatch :: String -> String -> IO MatchResult
+wildmatch :: String -> String -> IO Bool
 wildmatch pattern text = do
   let bsPattern = pack pattern
   let bsText = pack text
   useAsCString bsPattern $ \c_pattern -> do
     useAsCString bsText $ \c_text -> do
       let c_ret = c_wildmatch c_pattern c_text (fromIntegral $ unwrapMatchFlag wmPathName) nullPtr
-      return $ MatchResult $ fromIntegral c_ret
+      return $ (MatchResult $ fromIntegral c_ret) == wmMatch
+
+wildmatchAny :: [String] -> String -> IO Bool
+wildmatchAny [] text = return True
+wildmatchAny patterns text = anyM (\p -> wildmatch p text) patterns
 
 -- For FFI test purpose
 foreign import ccall "math.h sin"
