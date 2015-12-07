@@ -1,5 +1,5 @@
-module Core (
-  IPath
+module Syncron.Core (
+  Data (..)
   ) where
 
-class IPath path
+data Data a = Data
